@@ -575,6 +575,11 @@ else:
                 t_rain = trend("field3")
                 t_soil = trend("field4")
                 t_light = trend("field5")
+                
+                # Check for day/night cycle (approximate GMT+8 for Philippines)
+                # Streamlit Cloud uses UTC, so we add 8 hours
+                current_hour_ph = (datetime.now().hour + 8) % 24
+                is_night = current_hour_ph >= 18 or current_hour_ph < 6
 
                 # Insights rules
                 if t_temp > 0.5:
@@ -592,11 +597,16 @@ else:
                 elif t_soil > 50:
                     insights.append("• Soil moisture rising sharply; check irrigation system for overwatering.")
 
+                # LIGHT LOGIC: Only warn if it is DAY time (not night)
                 if last["field5"].dropna().iloc[-1] < 100:
-                    insights.append("• Light levels are low; consider supplemental lighting.")
+                    if not is_night:
+                        insights.append("• Light levels are low for daytime; consider supplemental lighting.")
+                    # Else: It is night time, so low light is normal (no warning)
 
+                # RAIN LOGIC: Warn to move device
                 if last["field3"].dropna().iloc[-1] > 0:
-                    insights.append("• Rain detected recently; reduce irrigation accordingly.")
+                    insights.append("• 🌧️ Rain detected! Move the device/plant to a sheltered area to prevent overwatering.")
+                    
         except Exception:
             insights.append("• Not enough data to compute insights.")
 
