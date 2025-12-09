@@ -365,7 +365,7 @@ with st.sidebar:
     # REMOVED DIVIDER
     st.markdown("### Growth Summary")
     st.metric("Current Age", f"Day {days_elapsed}")
-    st.metric("AI Predicted Harvest", f"Day {total_predicted_cycle}")
+    st.metric("SARIMA Predicted Harvest", f"Day {total_predicted_cycle}")
     st.caption(f"Model predicts harvest in {predicted_remaining} days")
 
 # ============ TITLE & DATE/TIME ============
@@ -866,4 +866,5 @@ with st.container(border=True):
 # Auto-refresh
 if REFRESH_INTERVAL:
     time.sleep(REFRESH_INTERVAL)
+
     st.rerun()
