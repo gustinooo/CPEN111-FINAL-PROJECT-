@@ -45,25 +45,44 @@ def save_config(planting_date):
     with open(CONFIG_FILE, "w") as f:
         json.dump({"planting_date": planting_date.strftime("%Y-%m-%d")}, f)
 
-# ============ CSS ============
+# ============ CSS (UPDATED FOR CLOUD FIX) ============
 css = f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
-html, body, [data-testid='stAppViewContainer'] {{
+html, body {{
   font-family: 'Poppins', sans-serif;
   color: #333333;
 }}
 
-[data-testid='stAppViewContainer'] {{
+/* === BACKGROUND FIX FOR CLOUD === */
+[data-testid="stAppViewContainer"] {{
     background-image: linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.1)), url('data:image/jpeg;base64,{LETTUCE_BASE64}');
     background-size: cover;
+    background-position: center;
     background-attachment: fixed;
     background-repeat: no-repeat;
     -webkit-font-smoothing: antialiased;
 }}
 
-[data-testid='stMainBlockContainer'] {{ background-color: transparent !important; }}
+/* Make the top header transparent so it doesn't block the image */
+[data-testid="stHeader"] {{
+    background: rgba(0,0,0,0);
+    color: white;
+}}
+
+/* Remove default white background and adjust padding */
+[data-testid="stMainBlockContainer"] {{ 
+    background-color: transparent !important; 
+    padding-top: 50px; 
+}}
+
+/* === SIDEBAR FIX === */
+[data-testid="stSidebar"] {{
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-right: 1px solid rgba(255,255,255,0.5);
+}}
 
 /* === REUSABLE LIGHT GLASS STYLE === */
 .glass-container {{
@@ -152,12 +171,6 @@ html, body, [data-testid='stAppViewContainer'] {{
     color: #2e7d32;
     border-color: #2e7d32;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}}
-
-/* === SIDEBAR STYLE === */
-[data-testid="stSidebar"] {{
-    background-color: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
 }}
 
 /* === TAB STYLING === */
@@ -365,7 +378,8 @@ with st.sidebar:
     # REMOVED DIVIDER
     st.markdown("### Growth Summary")
     st.metric("Current Age", f"Day {days_elapsed}")
-    st.metric("SARIMA Predicted Harvest", f"Day {total_predicted_cycle}")
+    # === CHANGED LABEL HERE ===
+    st.metric("SARIMA Predictions", f"Day {total_predicted_cycle}")
     st.caption(f"Model predicts harvest in {predicted_remaining} days")
 
 # ============ TITLE & DATE/TIME ============
@@ -561,6 +575,11 @@ else:
                 t_rain = trend("field3")
                 t_soil = trend("field4")
                 t_light = trend("field5")
+                
+                # Check for day/night cycle (approximate GMT+8 for Philippines)
+                # Streamlit Cloud uses UTC, so we add 8 hours
+                current_hour_ph = (datetime.now().hour + 8) % 24
+                is_night = current_hour_ph >= 18 or current_hour_ph < 6
 
                 # Insights rules
                 if t_temp > 0.5:
@@ -578,11 +597,16 @@ else:
                 elif t_soil > 50:
                     insights.append("• Soil moisture rising sharply; check irrigation system for overwatering.")
 
+                # LIGHT LOGIC: Only warn if it is DAY time (not night)
                 if last["field5"].dropna().iloc[-1] < 100:
-                    insights.append("• Light levels are low; consider supplemental lighting.")
+                    if not is_night:
+                        insights.append("• Light levels are low for daytime; consider supplemental lighting.")
+                    # Else: It is night time, so low light is normal (no warning)
 
+                # RAIN LOGIC: Warn to move device
                 if last["field3"].dropna().iloc[-1] > 0:
-                    insights.append("• Rain detected recently; reduce irrigation accordingly.")
+                    insights.append("• 🌧️ Rain detected! Move the device/plant to a sheltered area to prevent overwatering.")
+                    
         except Exception:
             insights.append("• Not enough data to compute insights.")
 
@@ -636,10 +660,16 @@ else:
     )
 
     with tab1:
-        st.caption("Monitoring Temperature, Humidity, and Light over the last 100 readings")
-        # High Contrast Colors: Dark Red, Dark Blue, Dark Gold/Orange
-        fig_combined = px.line(eda_df, y=["Temperature", "Humidity", "Light"], 
-                               color_discrete_map={"Temperature": "#C62828", "Humidity": "#1565C0", "Light": "#F9A825"})
+        st.caption("Monitoring all sensor parameters over the last 100 readings")
+        # Added Rain and Soil to the y-axis list and color map
+        fig_combined = px.line(eda_df, y=["Temperature", "Humidity", "Light", "Rain", "Soil"], 
+                               color_discrete_map={
+                                   "Temperature": "#C62828", 
+                                   "Humidity": "#1565C0", 
+                                   "Light": "#F9A825",
+                                   "Rain": "#00838F", # Teal
+                                   "Soil": "#5D4037"  # Brown
+                               })
         fig_combined.update_layout(**plotly_layout_transparent)
         st.plotly_chart(fig_combined, use_container_width=True, config=plotly_config)
 
@@ -866,5 +896,4 @@ with st.container(border=True):
 # Auto-refresh
 if REFRESH_INTERVAL:
     time.sleep(REFRESH_INTERVAL)
-
     st.rerun()
