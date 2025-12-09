@@ -660,10 +660,16 @@ else:
     )
 
     with tab1:
-        st.caption("Monitoring Temperature, Humidity, and Light over the last 100 readings")
-        # High Contrast Colors: Dark Red, Dark Blue, Dark Gold/Orange
-        fig_combined = px.line(eda_df, y=["Temperature", "Humidity", "Light"], 
-                               color_discrete_map={"Temperature": "#C62828", "Humidity": "#1565C0", "Light": "#F9A825"})
+        st.caption("Monitoring all sensor parameters over the last 100 readings")
+        # Added Rain and Soil to the y-axis list and color map
+        fig_combined = px.line(eda_df, y=["Temperature", "Humidity", "Light", "Rain", "Soil"], 
+                               color_discrete_map={
+                                   "Temperature": "#C62828", 
+                                   "Humidity": "#1565C0", 
+                                   "Light": "#F9A825",
+                                   "Rain": "#00838F", # Teal
+                                   "Soil": "#5D4037"  # Brown
+                               })
         fig_combined.update_layout(**plotly_layout_transparent)
         st.plotly_chart(fig_combined, use_container_width=True, config=plotly_config)
 
